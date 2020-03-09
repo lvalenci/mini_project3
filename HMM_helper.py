@@ -136,7 +136,7 @@ def syllable_dict():
     <word>_ means syllable count of the word when it occurs at the end of a line"""
     counts = dict()
     
-    with open('../data/Syllable_dictionary.txt') as file:
+    with open('data/Syllable_dictionary.txt') as file:
         for line in file:
             arr = line.split(' ', 1)
             if 'E' in arr[1]:
@@ -161,6 +161,34 @@ def sample_sonnet(hmm, obs_map, n_words):
 
     return sonnet 
 
+def sample_sentence_syl(hmm, obs_map, n_words=100):
+    # Get reverse map.
+    obs_map_r = obs_map_reverser(obs_map)
+
+    # Sample and convert sentence.
+    emission, states = hmm.generate_emission(n_words)
+    sentence = [obs_map_r[i] for i in emission]
+
+    return sentence
+
+def make_line(line, n_syl, syl_counts):
+    """given a line, makes a string consisting of first n_syl, of the line. returns 
+    tuple of whether line was successfully made and new line"""
+    curr = 0
+    for i in range(n_syl):
+        if line[i] not in syl_counts:
+            return (False, '')
+        w_syl = syl_counts[line[i]]
+        if curr + w_syl > n_syl:
+            if ((line[i] + '_') in syl_counts) and \
+                        (syl_counts[line[i] + '_'] + curr == n_syl):
+                return (True, ' '.join(line[:i+1]).capitalize() + '\n')
+            return (False, '')
+        if curr + w_syl == n_syl:
+            return (True, ' '.join(line[:i+1]).capitalize() + '\n')
+        curr += w_syl
+                 
+            
 
 def sample_sonnet_syllables(hmm, obs_map, n_syl = 10):
     """samples a sonnect with n_syl number of syllables"""
@@ -168,11 +196,17 @@ def sample_sonnet_syllables(hmm, obs_map, n_syl = 10):
     sonnet = ''
     sonnet_length = 14
     count = 0
+    syl_counts = syllable_dict()
+    
     while count < sonnet_length:
-        line = sample_sentence(hmm, obs_map, n_syl)
-        ns = 0
-        sl = ''
-        for 
+        line = sample_sentence_syl(hmm, obs_map, n_syl)
+        (worked, nline) = make_line(line, n_syl, syl_counts)
+        if worked:
+            sonnetLines.append(nline)
+            count += 1
+    for line in sonnetLines:
+        sonnet += line
+    return sonnet
 
 
 ####################
