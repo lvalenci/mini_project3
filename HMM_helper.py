@@ -127,6 +127,26 @@ def sample_sentence(hmm, obs_map, n_words=100):
 
     return ' '.join(sentence).capitalize()
 
+####################
+# SONNET GENERATING FUNCTIONS
+####################
+
+def syllable_dict():
+    """returns dictionary of syllable counts as reported by Syllable_dictionary.txt
+    <word>_ means syllable count of the word when it occurs at the end of a line"""
+    counts = dict()
+    
+    with open('../data/Syllable_dictionary.txt') as file:
+        for line in file:
+            arr = line.split(' ', 1)
+            if 'E' in arr[1]:
+                cts = arr[1].split(' ', 1)
+                counts[arr[0]] = int(cts[1][0])
+                counts[(arr[0] + "_")] = int(cts[0][1])
+            else:
+                counts[arr[0]] = int(arr[1][0])
+    return counts
+
 def sample_sonnet(hmm, obs_map, n_words):
     # Generate 14 lines ("sentences"), i.e. generate 14 emissions
     sonnetLines = []
@@ -140,6 +160,19 @@ def sample_sonnet(hmm, obs_map, n_words):
         sonnet += line
 
     return sonnet 
+
+
+def sample_sonnet_syllables(hmm, obs_map, n_syl = 10):
+    """samples a sonnect with n_syl number of syllables"""
+    sonnetLines = []
+    sonnet = ''
+    sonnet_length = 14
+    count = 0
+    while count < sonnet_length:
+        line = sample_sentence(hmm, obs_map, n_syl)
+        ns = 0
+        sl = ''
+        for 
 
 
 ####################
