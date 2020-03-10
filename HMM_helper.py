@@ -107,6 +107,10 @@ def parse_observations(text):
         # Add the encoded sequence.
         obs.append(obs_elem)
 
+    # Now, we reverse all observations before returning.
+    for obs_index in range(len(obs)):
+        obs[obs_index].reverse()
+
     return obs, obs_map
 
 def obs_map_reverser(obs_map):
@@ -131,22 +135,6 @@ def sample_sentence(hmm, obs_map, n_words=100):
 # SONNET GENERATING FUNCTIONS
 ####################
 
-def syllable_dict():
-    """returns dictionary of syllable counts as reported by Syllable_dictionary.txt
-    <word>_ means syllable count of the word when it occurs at the end of a line"""
-    counts = dict()
-    
-    with open('data/Syllable_dictionary.txt') as file:
-        for line in file:
-            arr = line.split(' ', 1)
-            if 'E' in arr[1]:
-                cts = arr[1].split(' ', 1)
-                counts[arr[0]] = int(cts[1][0])
-                counts[(arr[0] + "_")] = int(cts[0][1])
-            else:
-                counts[arr[0]] = int(arr[1][0])
-    return counts
-
 def sample_sonnet(hmm, obs_map, n_words):
     # Generate 14 lines ("sentences"), i.e. generate 14 emissions
     sonnetLines = []
@@ -161,52 +149,227 @@ def sample_sonnet(hmm, obs_map, n_words):
 
     return sonnet 
 
-def sample_sentence_syl(hmm, obs_map, n_words=100):
+def syllable_dict():
+    """
+    Returns dictionary of syllable counts as reported by Syllable_dictionary.txt
+    <word>_ means syllable count of the word when it occurs at the end of a line.
+    Keys of the dictionary are words and values of the dictionary are how many
+    syllables that word has. 
+    """
+    counts = dict()
+    
+    with open('data/Syllable_dictionary.txt') as file:
+        for line in file:
+            arr = line.split(' ', 1)
+            if 'E' in arr[1]:
+                cts = arr[1].split(' ', 1)
+                counts[arr[0]] = int(cts[1][0])
+                counts[(arr[0] + "_")] = int(cts[0][1])
+            else:
+                counts[arr[0]] = int(arr[1][0])
+    return counts
+
+def sample_sentence_syl(hmm, obs_map, rhyme_dict, start_word, n_words=100):
     # Get reverse map.
     obs_map_r = obs_map_reverser(obs_map)
 
+    num_start_word = obs_map[re.sub(r'[^\w]', '', start_word).lower()]
+    num_rhyme_dict = {}
+
+    # Convert the rhyme_dict to be composed of numbers instead of words.
+    for _, (key, value) in enumerate(rhyme_dict.items()):
+        num_value = []
+        for val in value:
+            # Clean up the word so we can see where it is in obs_map
+            n_val = re.sub(r'[^\w]', '', val).lower()
+            num_value.append(obs_map[n_val]) 
+
+        n_key = re.sub(r'[^\w]', '', key).lower()
+        num_rhyme_dict[obs_map[n_key]] = num_value
+
     # Sample and convert sentence.
-    emission, states = hmm.generate_emission(n_words)
+    # emission, states = hmm.generate_emission(n_words, num_rhyme_dict)
+    emission, states = hmm.generate_emission(n_words, num_start_word)
     sentence = [obs_map_r[i] for i in emission]
+
+    # Flip the order of the sentence before returning.
+    # sentence.reverse() 
 
     return sentence
 
 def make_line(line, n_syl, syl_counts):
-    """given a line, makes a string consisting of first n_syl, of the line. returns 
-    tuple of whether line was successfully made and new line"""
+    """
+    Given a line, makes a string consisting of first n_syl, of the line. 
+    Returns tuple of whether line was successfully made and new line.
+    Note: the lines fed into this function are REVERSED lines.
+    """
+
+    # Capitlize all i's to I's.
+    for word_num in range(len(line)):
+        if line[word_num] == 'i':
+            line[word_num] = 'I'
+
+    # Current number of syllables in constructed line.
+    # This includes the syllable count of the first word.
     curr = 0
-    for i in range(n_syl):
+
+    # Now, since the list is reversed, the last word of the actual sonnet
+    # line is the first word of 'line'. So we want to check if this
+    # word can be counted as one syllable.
+
+    # Number of syllable in first word (last word of actual line)
+    init_syl = syl_counts[line[0]]
+    init_syl_alt = init_syl
+
+    # Alternative syllable count
+    if ((line[0] + '_') in syl_counts):
+        init_syl_alt = syl_counts[line[0] + '_']
+
+    for i in range(1, n_syl):
         if line[i] not in syl_counts:
             return (False, '')
+
         w_syl = syl_counts[line[i]]
-        if curr + w_syl > n_syl:
-            if ((line[i] + '_') in syl_counts) and \
-                        (syl_counts[line[i] + '_'] + curr == n_syl):
-                return (True, ' '.join(line[:i+1]).capitalize() + '\n')
+
+        if init_syl + curr + w_syl and init_syl_alt + curr + w_syl > n_syl:
             return (False, '')
-        if curr + w_syl == n_syl:
-            return (True, ' '.join(line[:i+1]).capitalize() + '\n')
+        if init_syl+ curr + w_syl == n_syl or init_syl_alt + curr + w_syl == n_syl:
+            return (True, ' '.join(line[:i+1]))
         curr += w_syl
                  
-            
 
-def sample_sonnet_syllables(hmm, obs_map, n_syl = 10):
+def sample_sonnet_syllables(hmm, obs_map, rhyme_dict, n_syl = 10):
     """samples a sonnect with n_syl number of syllables"""
     sonnetLines = []
+    r_sonnetLines = []
     sonnet = ''
     sonnet_length = 14
     count = 0
     syl_counts = syllable_dict()
+    # print(syl_counts)
     
     while count < sonnet_length:
-        line = sample_sentence_syl(hmm, obs_map, n_syl)
-        (worked, nline) = make_line(line, n_syl, syl_counts)
-        if worked:
-            sonnetLines.append(nline)
-            count += 1
+        # Pick a random word from the rhyming dictionary that the line has to start with. 
+        
+        start_word = np.random.choice(list(rhyme_dict.keys()))
+        rhyme_word = np.random.choice(rhyme_dict[start_word])
+        line1 = sample_sentence_syl(hmm, obs_map, rhyme_dict, start_word, n_syl)
+        line2 = sample_sentence_syl(hmm, obs_map, rhyme_dict, rhyme_word, n_syl)
+        (worked1, nline1) = make_line(line1, n_syl, syl_counts)
+        (worked2, nline2) = make_line(line2, n_syl, syl_counts)
+        if worked1 and worked2:
+            sonnetLines.append(nline1)
+            sonnetLines.append(nline2)
+            count += 2
+
+    # Now flip the order of each line.
     for line in sonnetLines:
-        sonnet += line
+        line_reversed = ' '.join(reversed(line.split(' '))).capitalize()
+        r_sonnetLines.append(line_reversed + '\n')
+
+    # Rearrange 7 couplets into a sonnet.
+    for stanza in range(0, 3):
+        idx = [0, 1, 2, 3]
+        for i in range(len(idx)):
+            idx[i] += stanza * 4
+        sonnet += r_sonnetLines[idx[0]] + r_sonnetLines[idx[2]] + r_sonnetLines[idx[1]] + r_sonnetLines[idx[3]]
+
+    for line_num in range(12, 14):
+        sonnet += r_sonnetLines[line_num]
+
     return sonnet
+
+######################
+# MAKING SONNETS RHYME
+######################
+
+def create_rhyme_dict(text):
+    '''
+    This method does the same thing as parse_observations,
+    but instead of creating an observation map for every word in
+    Shakespeare's sonnets, it creates a dictionary where keys are
+    words and values are words that rhyme with the keys.
+    '''
+    lines = [line.split() for line in text.split('\n') if line.split()]
+
+    end_words = []
+    sonnet_end_words = []
+
+    rhyme_dict = {}
+
+    # Sonnet 99
+    rhyme_dict['chide'] = ['dyed']
+    rhyme_dict['pride'] = ['dyed']
+    rhyme_dict['dyed'] = ['chide', 'pride']
+
+    for line_num in range(len(lines)):
+        line = lines[line_num]
+        # Sonnet 99 and 126 are strange.
+        if line_num != 1376 and line_num not in range(1751, 1763):
+            end_words.append(line[len(line) - 1])
+        # Sonnet 126 has rhyme scheme aabb ccdd eeff.
+        elif line_num in range(1751, 1763):
+            sonnet_end_words.append(line[len(line) - 1])
+
+    for line_num in range(len(sonnet_end_words)):
+        word = sonnet_end_words[line_num]
+
+        if (line_num % 2 == 0):
+            if (line_num + 1) < len(sonnet_end_words):
+                if word not in rhyme_dict.keys():
+                    rhyme_dict[word] = [sonnet_end_words[line_num + 1]]
+                elif sonnet_end_words[line_num + 1] not in rhyme_dict[word]:
+                    rhyme_dict[word].append(sonnet_end_words[line_num + 1])
+        elif (line_num % 2 == 1):
+            if word not in rhyme_dict.keys():
+                rhyme_dict[word] = [sonnet_end_words[line_num - 1]]
+            elif sonnet_end_words[line_num - 1] not in rhyme_dict[word]:
+                rhyme_dict[word].append(sonnet_end_words[line_num - 1])
+
+    # Now, we use the fact that sonnets have an
+    # abab cdcd efef gg rhyme scheme.
+    # NOTE: Sonnet 99 is actually 15 lines,
+    # with an ababa cdcd efef gg scheme.
+    # Occurs at line 1376.
+
+    # Only three of Shakespeare's 154 sonnets do not conform to this structure: 
+    # Sonnet 99, which has 15 lines; 
+    # Sonnet 126, which has 12 lines; 
+    # and Sonnet 145, which is written in iambic tetrameter.
+
+    for line_num in range(len(end_words)):
+        word = end_words[line_num]
+
+        if (line_num % 14 == 0) or (line_num % 14 == 1) or \
+            (line_num % 14 == 4) or (line_num % 14 == 5) or \
+            (line_num % 14 == 8) or (line_num % 14 == 9):
+            if (line_num + 2) < len(end_words):
+                # There may be multiple words which rhyme with a 
+                # single word.
+                if word not in rhyme_dict.keys():
+                    rhyme_dict[word] = [end_words[line_num + 2]]
+                elif end_words[line_num + 2] not in rhyme_dict[word]:
+                    rhyme_dict[word].append(end_words[line_num + 2])
+        elif (line_num % 14 == 2) or (line_num % 14 == 3) or \
+            (line_num % 14 == 6) or (line_num % 14 == 7) or \
+            (line_num % 14 == 10) or (line_num % 14 == 11):
+            if word not in rhyme_dict.keys():
+                rhyme_dict[word] = [end_words[line_num - 2]]
+            elif end_words[line_num - 2] not in rhyme_dict[word]:
+                rhyme_dict[word].append(end_words[line_num - 2])
+        elif (line_num % 14 == 12):
+            if (line_num + 1) < len(end_words):
+                if word not in rhyme_dict.keys():
+                    rhyme_dict[word] = [end_words[line_num + 1]]
+                elif end_words[line_num + 1] not in rhyme_dict[word]:
+                    rhyme_dict[word].append(end_words[line_num + 1])
+        elif (line_num % 14 == 13):
+            if word not in rhyme_dict.keys():
+                rhyme_dict[word] = [end_words[line_num - 1]]
+            elif end_words[line_num - 1] not in rhyme_dict[word]:
+                rhyme_dict[word].append(end_words[line_num - 1])
+
+    return rhyme_dict
 
 
 ####################
