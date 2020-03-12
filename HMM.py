@@ -359,7 +359,7 @@ class HiddenMarkovModel:
                     self.O[row][col] = O_num[row][col] / O_den[row]
 
 
-    def generate_emission(self, M):
+    def generate_emission(self, M, start_word = ''):
         '''
         Generates an emission of length M, assuming that the starting state
         is chosen uniformly at random. 
@@ -375,10 +375,19 @@ class HiddenMarkovModel:
 
         emission = []
         states = []
+        state = None
+        
+        if start_word == '':
+            state = np.random.choice(range(self.L))
+            emission.append(np.random.choice(range(self.D), p = self.O[state]))
+        
+        else:
+            O = np.array(self.O)
+            emission.append(start_word)
+            state = np.random.choice(range(self.L), p = O[:,start_word]/np.sum(O[:,start_word]))
+        states.append(state)
 
-        state = np.random.choice(range(self.L))
-
-        for i in range(M):
+        for i in range(M - 1):
             state = np.random.choice(range(self.L), p = self.A[state])
             emission.append(np.random.choice(range(self.D), p = self.O[state]))
             states.append(state)
