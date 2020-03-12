@@ -53,6 +53,11 @@ def text_to_wordcloud(text, max_words=50, title='', show=True):
 
 def states_to_wordclouds(hmm, obs_map, max_words=50, show=True):
     # Initialize.
+    """Added two features:
+        1: if length of obs_list is 0 then does not generate wordcloud.
+            This was done as 0th state had no words in the emission.
+        2: for each state, printed out the 10 most frequent words prior
+            to generating wordcloud."""
     M = 100000
     n_states = len(hmm.A)
     obs_map_r = obs_map_reverser(obs_map)
@@ -148,7 +153,8 @@ def sample_sentence(hmm, obs_map, n_words=100):
 ####################
 
 def sample_sonnet(hmm, obs_map, n_words):
-    # Generate 14 lines ("sentences"), i.e. generate 14 emissions
+    """ Generate 14 lines ("sentences"), i.e. generate 14 emissions. This is 
+    done in the naive method"""
     sonnetLines = []
     sonnet = ''
 
@@ -182,7 +188,7 @@ def syllable_dict():
     return counts
 
 def sample_sentence_syl(hmm, obs_map, rhyme_dict, start_word, n_words=100):
-    # Get reverse map.
+    """given a start word, sample a sentence from the HMM which starts with the word"""
     obs_map_r = obs_map_reverser(obs_map)
 
     num_start_word = obs_map[re.sub(r'[^-\'\w]', '', start_word).lower().strip('\'')]
@@ -245,7 +251,7 @@ def make_line(line, n_syl, syl_counts):
         curr += w_syl
 
 def sample_sentence_syl_only(hmm, obs_map, n_words=100):
-    # Get reverse map.
+    """samples sentence which does not rhyme"""
     obs_map_r = obs_map_reverser(obs_map)
 
     # Sample and convert sentence.
@@ -437,6 +443,7 @@ def create_rhyme_dict(text):
 ####################
 
 def visualize_sparsities(hmm, O_max_cols=50, O_vmax=0.1):
+    # previous function
     plt.close('all')
     plt.set_cmap('viridis')
 

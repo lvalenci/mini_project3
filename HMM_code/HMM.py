@@ -363,6 +363,10 @@ class HiddenMarkovModel:
         '''
         Generates an emission of length M, assuming that the starting state
         is chosen uniformly at random. 
+        
+        If start_word argument used, then has start_word be first word in
+        emission and starting state depends on probability of emitting word
+        from said state.
 
         Arguments:
             M:          Length of the emission to generate.
