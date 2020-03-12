@@ -160,6 +160,22 @@ def syllable_dict():
     
     with open('data/Syllable_dictionary.txt') as file:
         for line in file:
+            while ',' in line:
+                line = line.replace(',', '')
+            while ':' in line:
+                line = line.replace(':', '')
+            while ';' in line:
+                line = line.replace(';', '')
+            while '.' in line:
+                line = line.replace('.', '')
+            while '(' in line:
+                line = line.replace('(', '')
+            while ')' in line:
+                line = line.replace(')', '')
+            while '?' in line:
+                line = line.replace('?', '')
+            while '!' in line:
+                line = line.replace('!', '')
             arr = line.split(' ', 1)
             if 'E' in arr[1]:
                 cts = arr[1].split(' ', 1)
@@ -236,10 +252,61 @@ def make_line(line, n_syl, syl_counts):
         if init_syl+ curr + w_syl == n_syl or init_syl_alt + curr + w_syl == n_syl:
             return (True, ' '.join(line[:i+1]))
         curr += w_syl
-                 
 
-def sample_sonnet_syllables(hmm, obs_map, rhyme_dict, n_syl = 10):
+def sample_sentence_syl_only(hmm, obs_map, n_words=100):
+    # Get reverse map.
+    obs_map_r = obs_map_reverser(obs_map)
+
+    # Sample and convert sentence.
+    emission, states = hmm.generate_emission(n_words)
+    sentence = [obs_map_r[i] for i in emission]
+
+    return sentence     
+
+def make_line_syl_only(line, n_syl, syl_counts):
+    """given a line, makes a string consisting of first n_syl, of the line. returns 
+    tuple of whether line was successfully made and new line"""
+    curr = 0
+    
+    # Capitlize all i's to I's.
+    for word_num in range(len(line)):
+        if line[word_num] == 'i':
+            line[word_num] = 'I'
+    
+    for i in range(n_syl):
+        if line[i] not in syl_counts:
+            return (False, '')
+        w_syl = syl_counts[line[i]]
+        if curr + w_syl > n_syl:
+            if ((line[i] + '_') in syl_counts) and \
+                        (syl_counts[line[i] + '_'] + curr == n_syl):
+                return (True, ' '.join(line[:i+1]).capitalize() + '\n')
+            return (False, '')
+        if curr + w_syl == n_syl:
+            return (True, ' '.join(line[:i+1]).capitalize() + '\n')
+        curr += w_syl
+
+def sample_sonnet_syllables_only(hmm, obs_map, n_syl = 10):
     """samples a sonnect with n_syl number of syllables"""
+    sonnetLines = []
+    sonnet = ''
+    sonnet_length = 14
+    count = 0
+    syl_counts = syllable_dict()
+    
+    while count < sonnet_length:
+        line = sample_sentence_syl_only(hmm, obs_map, n_syl)
+        (worked, nline) = make_line_syl_only(line, n_syl, syl_counts)
+        if worked:
+            sonnetLines.append(nline)
+            count += 1
+    for line in sonnetLines:
+        sonnet += line
+    return sonnet
+
+def sample_sonnet_syl_and_rhyme(hmm, obs_map, rhyme_dict, n_syl = 10):
+    """samples a sonnect with n_syl number of syllables and with 
+    ababcdcdefefgg rhyme scheme"""
     sonnetLines = []
     r_sonnetLines = []
     sonnet = ''
@@ -278,6 +345,8 @@ def sample_sonnet_syllables(hmm, obs_map, rhyme_dict, n_syl = 10):
         sonnet += r_sonnetLines[line_num]
 
     return sonnet
+
+
 
 ######################
 # MAKING SONNETS RHYME
