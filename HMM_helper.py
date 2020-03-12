@@ -73,6 +73,17 @@ def states_to_wordclouds(hmm, obs_map, max_words=50, show=True):
         obs_lst = obs_count[i]
         if len(obs_lst) > 0:
             sentence = [obs_map_r[j] for j in obs_lst]
+            word_ct_dict = {}
+
+            # get 10 most frequent words in the state
+            for word in sentence:
+                if word in word_ct_dict.keys():
+                    word_ct_dict[word] += 1
+                else:
+                    word_ct_dict[word] = 1
+
+            print(sorted(word_ct_dict, key = word_ct_dict.get, reverse = True)[:10])
+
             sentence_str = ' '.join(sentence)
 
             wordclouds.append(text_to_wordcloud(sentence_str, max_words=max_words, title='State %d' % i, show=show))
@@ -161,31 +172,13 @@ def syllable_dict():
     
     with open('data/Syllable_dictionary.txt') as file:
         for line in file:
-            '''
-            while ',' in line:
-                line = line.replace(',', '')
-            while ':' in line:
-                line = line.replace(':', '')
-            while ';' in line:
-                line = line.replace(';', '')
-            while '.' in line:
-                line = line.replace('.', '')
-            while '(' in line:
-                line = line.replace('(', '')
-            while ')' in line:
-                line = line.replace(')', '')
-            while '?' in line:
-                line = line.replace('?', '')
-            while '!' in line:
-                line = line.replace('!', '')
-            '''
             arr = line.split(' ', 1)
             if 'E' in arr[1]:
                 cts = arr[1].split(' ', 1)
-                counts[arr[0]] = int(cts[1][0])
-                counts[(arr[0] + "_")] = int(cts[0][1])
+                counts[arr[0].strip('\'')] = int(cts[1][0])
+                counts[(arr[0].strip('\'') + "_")] = int(cts[0][1])
             else:
-                counts[arr[0]] = int(arr[1][0])
+                counts[arr[0].strip('\'')] = int(arr[1][0])
     return counts
 
 def sample_sentence_syl(hmm, obs_map, rhyme_dict, start_word, n_words=100):
