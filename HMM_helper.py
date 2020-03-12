@@ -95,7 +95,7 @@ def parse_observations(text):
         obs_elem = []
         
         for word in line:
-            word = re.sub(r'[^\w]', '', word).lower()
+            word = re.sub(r'[^-\'\w]', '', word).lower().strip('\'')
             if word not in obs_map:
                 # Add unique words to the observations map.
                 obs_map[word] = obs_counter
@@ -160,6 +160,7 @@ def syllable_dict():
     
     with open('data/Syllable_dictionary.txt') as file:
         for line in file:
+            '''
             while ',' in line:
                 line = line.replace(',', '')
             while ':' in line:
@@ -176,6 +177,7 @@ def syllable_dict():
                 line = line.replace('?', '')
             while '!' in line:
                 line = line.replace('!', '')
+            '''
             arr = line.split(' ', 1)
             if 'E' in arr[1]:
                 cts = arr[1].split(' ', 1)
@@ -189,7 +191,7 @@ def sample_sentence_syl(hmm, obs_map, rhyme_dict, start_word, n_words=100):
     # Get reverse map.
     obs_map_r = obs_map_reverser(obs_map)
 
-    num_start_word = obs_map[re.sub(r'[^\w]', '', start_word).lower()]
+    num_start_word = obs_map[re.sub(r'[^-\'\w]', '', start_word).lower().strip('\'')]
     num_rhyme_dict = {}
 
     # Convert the rhyme_dict to be composed of numbers instead of words.
@@ -197,10 +199,10 @@ def sample_sentence_syl(hmm, obs_map, rhyme_dict, start_word, n_words=100):
         num_value = []
         for val in value:
             # Clean up the word so we can see where it is in obs_map
-            n_val = re.sub(r'[^\w]', '', val).lower()
+            n_val = re.sub(r'[^-\'\w]', '', val).lower().strip('\'')
             num_value.append(obs_map[n_val]) 
 
-        n_key = re.sub(r'[^\w]', '', key).lower()
+        n_key = re.sub(r'[^-\'\w]', '', key).lower().strip('\'')
         num_rhyme_dict[obs_map[n_key]] = num_value
 
     # Sample and convert sentence.
@@ -219,11 +221,6 @@ def make_line(line, n_syl, syl_counts):
     Returns tuple of whether line was successfully made and new line.
     Note: the lines fed into this function are REVERSED lines.
     """
-
-    # Capitlize all i's to I's.
-    for word_num in range(len(line)):
-        if line[word_num] == 'i':
-            line[word_num] = 'I'
 
     # Current number of syllables in constructed line.
     # This includes the syllable count of the first word.
